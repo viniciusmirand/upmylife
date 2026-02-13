@@ -1,0 +1,131 @@
+/* Achievements Page */
+.achievements-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.achievements-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-xl);
+}
+
+.achievements-header h1 {
+    font-size: var(--font-size-2xl);
+}
+
+.achievements-header p {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    margin-top: 4px;
+}
+
+/* Progress ring */
+.achievements-progress-ring {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.progress-ring-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.progress-ring-bg {
+    fill: none;
+    stroke: var(--xp-bar-bg);
+    stroke-width: 6;
+}
+
+.progress-ring-fill {
+    fill: none;
+    stroke: var(--accent-primary);
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dasharray 1s ease;
+}
+
+.progress-ring-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+}
+
+.progress-ring-value {
+    font-family: var(--font-display);
+    font-size: var(--font-size-lg);
+    font-weight: 800;
+    color: var(--accent-primary);
+}
+
+/* Grid */
+.achievements-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.achievement-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    padding: var(--space-md) var(--space-lg);
+    animation: fadeIn 0.3s ease forwards;
+    opacity: 0;
+}
+
+.achievement-card.locked {
+    opacity: 0;
+    animation: fadeIn 0.3s ease forwards;
+}
+
+.achievement-card.locked .achievement-info h3,
+.achievement-card.locked .achievement-info p {
+    opacity: 0.4;
+}
+
+.achievement-card.unlocked {
+    border-color: rgba(var(--accent-primary-rgb), 0.2);
+}
+
+.achievement-icon {
+    font-size: 2rem;
+    min-width: 50px;
+    text-align: center;
+}
+
+.achievement-card.locked .achievement-icon {
+    filter: grayscale(1);
+    opacity: 0.4;
+}
+
+.achievement-info {
+    flex: 1;
+}
+
+.achievement-info h3 {
+    font-size: var(--font-size-md);
+    font-weight: 600;
+}
+
+.achievement-info p {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.achievement-date {
+    font-size: var(--font-size-xs);
+    color: var(--text-accent);
+    margin-top: 4px;
+    display: inline-block;
+}
+
+.achievement-check {
+    font-size: 1.2rem;
+}

@@ -1,0 +1,238 @@
+/* Chest Page */
+.chest-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.chest-header {
+    margin-bottom: var(--space-xl);
+}
+
+.chest-header h1 {
+    font-size: var(--font-size-2xl);
+}
+
+.chest-header p {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+    margin-top: 4px;
+}
+
+/* Chest arena */
+.chest-arena {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-3xl) 0;
+    min-height: 350px;
+}
+
+.chest-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xl);
+    cursor: pointer;
+}
+
+.chest-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+    transition: all var(--transition-normal);
+}
+
+.chest-box.idle:hover {
+    transform: scale(1.05);
+}
+
+.chest-emoji {
+    font-size: 6rem;
+    line-height: 1;
+    filter: drop-shadow(0 0 20px rgba(var(--accent-primary-rgb), 0.3));
+}
+
+.chest-box.shaking .chest-emoji {
+    animation: chest-shake 0.5s ease-in-out infinite;
+}
+
+.chest-box.reveal .chest-emoji {
+    animation: chest-open 0.8s ease forwards;
+}
+
+.chest-label {
+    text-align: center;
+}
+
+.chest-count {
+    display: block;
+    font-family: var(--font-display);
+    font-size: var(--font-size-3xl);
+    font-weight: 900;
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.chest-label span:last-child {
+    font-size: var(--font-size-sm);
+    color: var(--text-muted);
+}
+
+.chest-open-btn {
+    padding: 12px 32px;
+    font-size: var(--font-size-md);
+}
+
+.chest-opening-text {
+    font-size: var(--font-size-lg);
+    color: var(--rarity-legendary);
+    font-weight: 700;
+}
+
+/* Revealed items */
+.chest-items-reveal {
+    display: flex;
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.reveal-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    border: 1px solid var(--bg-glass-border);
+    min-width: 130px;
+    opacity: 0;
+    transform: scale(0) translateY(20px);
+    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.reveal-item.visible {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+}
+
+.reveal-item-emoji {
+    font-size: 2.5rem;
+}
+
+.reveal-item-name {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    text-align: center;
+}
+
+/* Empty state */
+.chest-empty {
+    text-align: center;
+    padding: var(--space-3xl);
+}
+
+.empty-chest-icon {
+    font-size: 4rem;
+    margin-bottom: var(--space-md);
+}
+
+.chest-empty h2 {
+    font-size: var(--font-size-xl);
+    margin-bottom: var(--space-sm);
+}
+
+.chest-empty p {
+    color: var(--text-muted);
+    font-size: var(--font-size-sm);
+}
+
+/* Rarity Info */
+.rarity-info {
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+}
+
+.rarity-info h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--space-md);
+}
+
+.rarity-table {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.rarity-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.rarity-row .rarity-badge {
+    min-width: 90px;
+    justify-content: center;
+}
+
+.rarity-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--xp-bar-bg);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.rarity-bar-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 1s ease;
+}
+
+.rarity-chance {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 40px;
+    text-align: right;
+}
+
+/* Chest stats */
+.chest-stats {
+    padding: var(--space-lg);
+}
+
+.chest-stats h3 {
+    font-size: var(--font-size-lg);
+    margin-bottom: var(--space-md);
+}
+
+.chest-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+}
+
+.chest-stat {
+    text-align: center;
+    padding: var(--space-md);
+    border-radius: var(--radius-md);
+    background: var(--bg-glass);
+    border: 1px solid var(--bg-glass-border);
+}
+
+.chest-stat-value {
+    display: block;
+    font-family: var(--font-display);
+    font-size: var(--font-size-2xl);
+    font-weight: 800;
+    color: var(--accent-primary);
+}
+
+.chest-stat-label {
+    font-size: var(--font-size-xs);
+    color: var(--text-muted);
+}

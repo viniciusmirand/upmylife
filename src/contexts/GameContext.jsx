@@ -3,14 +3,15 @@ import { addXP, xpForDifficulty, levelProgress, xpToNextLevel, xpForLevel } from
 import { openChestWithItems } from '../utils/rarityEngine';
 import ITEM_CATALOG from '../data/itemCatalog';
 import ACHIEVEMENTS from '../data/achievements';
+import { supabase } from '../supabaseClient';
+import { useAuth } from './AuthContext';
 
 const GameContext = createContext(null);
-
-const STORAGE_KEY = 'quest-tasks-state';
 
 // ── Initial State ──
 const defaultState = {
     user: {
+        id: null,
         name: 'Aventureiro',
         level: 1,
         totalXP: 0,
@@ -27,36 +28,13 @@ const defaultState = {
         effect: null,
     },
     achievements: [],
-    notifications: [], // { id, type, message, data, seen }
+    notifications: [],
 };
-
-function loadState() {
-    try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-            const parsed = JSON.parse(saved);
-            return { ...defaultState, ...parsed };
-        }
-    } catch (e) {
-        console.warn('Failed to load state:', e);
-    }
-    return defaultState;
-}
-
-function saveState(state) {
-    try {
-        // Don't persist notifications
-        const { notifications, ...rest } = state;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(rest));
-    } catch (e) {
-        console.warn('Failed to save state:', e);
-    }
-}
 
 // ── Check achievements ──
 function checkAchievements(state) {
     const stats = {
-        tasksCompleted: state.tasks.filter(t => t.completed).length,
+        tasksCompleted: state.tasks.filter(t => t.status === 'completed').length,
         level: state.user.level,
         itemCount: state.inventory.length,
         rareCount: state.inventory.filter(i => i.rarity === 'rare').length,
@@ -85,19 +63,12 @@ function gameReducer(state, action) {
     let newState;
 
     switch (action.type) {
+        case 'INIT_STATE': {
+            return { ...state, ...action.payload };
+        }
+
         case 'ADD_TASK': {
-            const task = {
-                id: crypto.randomUUID(),
-                title: action.payload.title,
-                description: action.payload.description || '',
-                category: action.payload.category || 'daily',
-                difficulty: action.payload.difficulty || 'medium',
-                xpReward: xpForDifficulty(action.payload.difficulty || 'medium'),
-                completed: false,
-                completedAt: null,
-                createdAt: new Date().toISOString(),
-            };
-            newState = { ...state, tasks: [task, ...state.tasks] };
+            newState = { ...state, tasks: [action.payload, ...state.tasks] };
             break;
         }
 
@@ -105,33 +76,23 @@ function gameReducer(state, action) {
             newState = {
                 ...state,
                 tasks: state.tasks.map(t =>
-                    t.id === action.payload.id
-                        ? {
-                            ...t,
-                            ...action.payload,
-                            xpReward: action.payload.difficulty
-                                ? xpForDifficulty(action.payload.difficulty)
-                                : t.xpReward,
-                        }
-                        : t
+                    t.id === action.payload.id ? { ...t, ...action.payload } : t
                 ),
             };
             break;
         }
 
-        case 'COMPLETE_TASK': {
-            const task = state.tasks.find(t => t.id === action.payload);
-            if (!task || task.completed) return state;
-
-            const xpResult = addXP(state.user.totalXP, task.xpReward);
+        case 'COMPLETE_TASK_API': {
+            // result payload: { success, xpEarned, coinsEarned, chestDropped, leveledUp, memberStats, task }
+            const { xpEarned, coinsEarned, chestDropped, leveledUp, memberStats, task } = action.payload;
             const notifications = [];
 
-            if (xpResult.levelsGained > 0) {
+            if (leveledUp) {
                 notifications.push({
                     id: crypto.randomUUID(),
                     type: 'level_up',
-                    message: `Nível ${xpResult.newLevel}!`,
-                    data: { level: xpResult.newLevel, chestsEarned: xpResult.chestsEarned },
+                    message: `Level ${memberStats.level}!`,
+                    data: { level: memberStats.level, chestsEarned: chestDropped ? 1 : 0 },
                     seen: false,
                 });
             }
@@ -139,23 +100,45 @@ function gameReducer(state, action) {
             notifications.push({
                 id: crypto.randomUUID(),
                 type: 'xp_gained',
-                message: `+${task.xpReward} XP`,
-                data: { amount: task.xpReward },
+                message: `+${xpEarned} XP`,
+                data: { amount: xpEarned },
                 seen: false,
             });
+
+            if (coinsEarned > 0) {
+                notifications.push({
+                    id: crypto.randomUUID(),
+                    type: 'coins_gained',
+                    message: `+${coinsEarned} Coins`,
+                    data: { amount: coinsEarned },
+                    seen: false,
+                });
+            }
+
+            if (chestDropped && !leveledUp) { // if leveledUp, chest message is clustered
+                notifications.push({
+                    id: crypto.randomUUID(),
+                    type: 'chest_dropped',
+                    message: `Loot Box Encontrada!`,
+                    data: { chestsEarned: 1 },
+                    seen: false,
+                });
+            }
 
             newState = {
                 ...state,
                 tasks: state.tasks.map(t =>
-                    t.id === action.payload
-                        ? { ...t, completed: true, completedAt: new Date().toISOString() }
+                    t.id === task.id
+                        ? { ...t, status: 'completed', completed_at: task.completed_at }
                         : t
                 ),
                 user: {
                     ...state.user,
-                    level: xpResult.newLevel,
-                    totalXP: xpResult.newTotalXP,
-                    chestsAvailable: state.user.chestsAvailable + xpResult.chestsEarned,
+                    level: memberStats.level,
+                    totalXP: memberStats.xp,
+                    coins: memberStats.coins,
+                    chestsAvailable: memberStats.chests_available,
+                    chestsOpened: memberStats.chests_opened || state.user.chestsOpened
                 },
                 notifications: [...state.notifications, ...notifications],
             };
@@ -170,16 +153,16 @@ function gameReducer(state, action) {
             break;
         }
 
-        case 'OPEN_CHEST': {
-            if (state.user.chestsAvailable <= 0) return state;
-            const items = openChestWithItems(ITEM_CATALOG, 3);
+        case 'OPEN_CHEST_API': {
+            // result payload: { success, items, newChestsAvailable, newChestsOpened }
+            const { items, newChestsAvailable, newChestsOpened } = action.payload;
 
             newState = {
                 ...state,
                 user: {
                     ...state.user,
-                    chestsAvailable: state.user.chestsAvailable - 1,
-                    chestsOpened: state.user.chestsOpened + 1,
+                    chestsAvailable: newChestsAvailable,
+                    chestsOpened: newChestsOpened,
                 },
                 inventory: [...state.inventory, ...items],
                 notifications: [
@@ -187,7 +170,7 @@ function gameReducer(state, action) {
                     {
                         id: crypto.randomUUID(),
                         type: 'chest_opened',
-                        message: 'Baú aberto!',
+                        message: 'Chest Opened!',
                         data: { items },
                         seen: false,
                     },
@@ -196,15 +179,28 @@ function gameReducer(state, action) {
             break;
         }
 
+        case 'ADMIN_ADD_CHESTS': {
+            newState = {
+                ...state,
+                user: {
+                    ...state.user,
+                    chestsAvailable: state.user.chestsAvailable + action.payload,
+                }
+            };
+            break;
+        }
+
         case 'EQUIP_ITEM': {
-            const item = state.inventory.find(i => i.instanceId === action.payload);
-            if (!item) return state;
+            // Action payload now is { item, slot } instead of just instanceId
+            const { item, slot } = action.payload;
+            const inventoryItem = state.inventory.find(i => i.instanceId === item.instanceId);
+            if (!inventoryItem) return state;
 
             newState = {
                 ...state,
                 equippedItems: {
                     ...state.equippedItems,
-                    [item.slot]: action.payload,
+                    [slot]: item.instanceId,
                 },
             };
             break;
@@ -234,19 +230,6 @@ function gameReducer(state, action) {
             break;
         }
 
-        case 'SET_USER_NAME': {
-            newState = {
-                ...state,
-                user: { ...state.user, name: action.payload },
-            };
-            break;
-        }
-
-        case 'RESET_GAME': {
-            newState = { ...defaultState };
-            break;
-        }
-
         default:
             return state;
     }
@@ -264,7 +247,7 @@ function gameReducer(state, action) {
                     return {
                         id: crypto.randomUUID(),
                         type: 'achievement',
-                        message: def ? def.name : 'Nova conquista!',
+                        message: def ? def.name : 'New Achievement!',
                         data: { achievementId: a.id },
                         seen: false,
                     };
@@ -278,20 +261,196 @@ function gameReducer(state, action) {
 
 // ── Provider ──
 export function GameProvider({ children }) {
-    const [state, dispatch] = useReducer(gameReducer, null, loadState);
+    const { user: authUser, workspace } = useAuth();
+    const [state, dispatch] = useReducer(gameReducer, defaultState);
 
-    // Persist on every change
+    // Fetch initial data from Supabase
     useEffect(() => {
-        saveState(state);
-    }, [state]);
+        if (!authUser) return;
+
+        const fetchData = async () => {
+            // MVP Simplification: If no workspace is selected, we fetch/create a personal workspace
+            let activeWorkspaceId = workspace?.id;
+            let activeMember = null;
+
+            if (!activeWorkspaceId) {
+                // Check if user has any workspaces
+                const { data: workspaces } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', authUser.id);
+
+                if (workspaces && workspaces.length > 0) {
+                    activeWorkspaceId = workspaces[0].workspace_id;
+                } else {
+                    // Create personal workspace for new users with a client-side UUID to bypass RLS SELECT trap (42501)
+                    const newWpId = crypto.randomUUID();
+                    await supabase.from('workspaces').insert({ id: newWpId, name: 'Personal Quests' }); // Blind insert, no .select()
+
+                    activeWorkspaceId = newWpId;
+
+                    // Link the user to the new workspace so RLS allows task creation
+                    await supabase.from('workspace_members').insert({ workspace_id: newWpId, user_id: authUser.id, role: 'owner' });
+                }
+            }
+
+            if (!activeWorkspaceId) return;
+
+            // Fetch member data (XP, Level)
+            const { data: memberData } = await supabase
+                .from('workspace_members')
+                .select('*')
+                .eq('workspace_id', activeWorkspaceId)
+                .eq('user_id', authUser.id)
+                .single();
+
+            activeMember = memberData;
+
+            // Fetch tasks
+            const { data: tasksData } = await supabase
+                .from('tasks')
+                .select('*')
+                .eq('workspace_id', activeWorkspaceId)
+                .order('created_at', { ascending: false });
+
+            dispatch({
+                type: 'INIT_STATE',
+                payload: {
+                    user: {
+                        id: authUser.id,
+                        name: authUser.email,
+                        level: activeMember?.level || 1,
+                        totalXP: activeMember?.xp || 0,
+                        coins: activeMember?.coins || 0,
+                        chestsAvailable: activeMember?.chests_available || 0,
+                        chestsOpened: activeMember?.chests_opened || 0,
+                        streakDays: activeMember?.streak_days || 0
+                    },
+                    tasks: tasksData || [],
+                } // Preserving inventory as local for now until items table is populated via script
+            });
+        };
+
+        fetchData();
+    }, [authUser, workspace]);
+
+
+    // Action Creators that sync with Supabase
+    const addTask = async (payload) => {
+        const newTask = {
+            title: payload.title,
+            description: payload.description || '',
+            category: payload.category || 'daily',
+            difficulty: payload.difficulty || 'medium',
+            base_xp: xpForDifficulty(payload.difficulty || 'medium'),
+            status: 'pending',
+            created_by: state.user.id
+        };
+
+        // Get workspace id (simplification: first workspace of user)
+        const { data: workspaces } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', state.user.id);
+        if (!workspaces || workspaces.length === 0) return;
+
+        newTask.workspace_id = workspaces[0].workspace_id;
+
+        const { data, error } = await supabase.from('tasks').insert(newTask).select().single();
+        if (!error && data) {
+            dispatch({ type: 'ADD_TASK', payload: data });
+        } else {
+            console.error("Failed to insert task:", error);
+        }
+    };
+
+    const completeTask = async (taskId) => {
+        const taskToComplete = state.tasks.find(t => t.id === taskId);
+        if (!taskToComplete) return;
+
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            const res = await fetch(`http://localhost:4000/api/tasks/${taskId}/complete`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                dispatch({ type: 'COMPLETE_TASK_API', payload: result });
+            } else {
+                console.error("Failed to complete task on server:", result.error, result.message);
+            }
+        } catch (e) {
+            console.error("Error completing task via API:", e);
+        }
+    };
+
+    const openChest = async () => {
+        if (state.user.chestsAvailable <= 0) return;
+        try {
+            const { data: workspaces } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', state.user.id);
+            if (!workspaces || workspaces.length === 0) return;
+            const workspaceId = workspaces[0].workspace_id;
+
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            const res = await fetch(`http://localhost:4000/api/shop/open-chest`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ workspaceId })
+            });
+
+            const result = await res.json();
+            if (result.success) {
+                dispatch({ type: 'OPEN_CHEST_API', payload: result });
+                return result; // returning it so ChestPage can hook into animations
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const deleteTask = async (taskId) => {
+        const { error } = await supabase.from('tasks').delete().eq('id', taskId);
+        if (!error) {
+            dispatch({ type: 'DELETE_TASK', payload: taskId });
+        }
+    };
+
+    const adminAddChests = async (amount) => {
+        try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            const token = sessionData.session?.access_token;
+
+            const res = await fetch(`http://localhost:4000/api/admin/add-chests`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ amount })
+            });
+
+            const result = await res.json();
+
+            if (result.success) {
+                dispatch({ type: 'ADMIN_ADD_CHESTS', payload: amount });
+            } else {
+                console.error('Failed to add chests via API:', result.error);
+            }
+        } catch (e) {
+            console.error('Network error adding chests:', e);
+        }
+    };
 
     // Computed values
     const progress = levelProgress(state.user.totalXP, state.user.level);
     const xpNeeded = xpToNextLevel(state.user.level);
     const currentLevelXP = state.user.totalXP - xpForLevel(state.user.level);
 
-    const completedTasks = state.tasks.filter(t => t.completed);
-    const pendingTasks = state.tasks.filter(t => !t.completed);
+    const completedTasks = state.tasks.filter(t => t.status === 'completed');
+    const pendingTasks = state.tasks.filter(t => t.status !== 'completed');
     const unseenNotifications = state.notifications.filter(n => !n.seen);
 
     const getEquippedItem = useCallback((slot) => {
@@ -310,6 +469,13 @@ export function GameProvider({ children }) {
         pendingTasks,
         unseenNotifications,
         getEquippedItem,
+
+        // Expose new async actions
+        addTask,
+        completeTask,
+        deleteTask,
+        openChest,
+        adminAddChests
     };
 
     return (

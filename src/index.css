@@ -6,17 +6,27 @@
   body {
     @apply bg-game-bg text-game-common font-sans antialiased selection:bg-game-primary selection:text-white;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-display tracking-wider;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-game-primary hover:bg-indigo-400 text-white font-bold py-2 px-4 rounded transition-colors duration-200 shadow-[0_0_10px_rgba(99,102,241,0.5)] hover:shadow-[0_0_15px_rgba(99,102,241,0.8)];
+    @apply bg-game-primary hover:bg-indigo-400 text-white font-bold py-2 px-4 rounded transition-colors duration-200;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.5);
   }
-  
+
+  .btn-primary:hover {
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+  }
+
   .btn-secondary {
     @apply bg-game-card hover:bg-gray-800 text-white font-bold py-2 px-4 rounded border border-gray-700 transition-colors duration-200;
   }

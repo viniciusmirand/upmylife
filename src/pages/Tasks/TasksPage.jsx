@@ -92,8 +92,8 @@ export default function TasksPage() {
                     <button
                         key={cat.key}
                         className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold tracking-wider uppercase whitespace-nowrap transition-all ${filter === cat.key
-                                ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]'
-                                : 'glass-panel text-game-common/70 hover:text-white hover:bg-white/10 border-transparent hover:border-white/10'
+                            ? 'bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.4)]'
+                            : 'glass-panel text-game-common/70 hover:text-white hover:bg-white/10 border-transparent hover:border-white/10'
                             }`}
                         onClick={() => setFilter(cat.key)}
                     >
@@ -154,8 +154,8 @@ export default function TasksPage() {
                                             key={cat.key}
                                             type="button"
                                             className={`px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all border ${formCat === cat.key
-                                                    ? 'bg-game-primary/20 text-game-primary border-game-primary/50'
-                                                    : 'bg-black/40 text-game-common/50 border-white/5 hover:bg-white/5 hover:text-white'
+                                                ? 'bg-game-primary/20 text-game-primary border-game-primary/50'
+                                                : 'bg-black/40 text-game-common/50 border-white/5 hover:bg-white/5 hover:text-white'
                                                 }`}
                                             onClick={() => setFormCat(cat.key)}
                                         >
@@ -173,8 +173,8 @@ export default function TasksPage() {
                                             key={diff.key}
                                             type="button"
                                             className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${formDiff === diff.key
-                                                    ? `${diff.bg} ${diff.border} ${diff.color}`
-                                                    : 'bg-black/40 border-white/5 text-game-common/50 hover:bg-white/5 hover:text-white'
+                                                ? `${diff.bg} ${diff.border} ${diff.color}`
+                                                : 'bg-black/40 border-white/5 text-game-common/50 hover:bg-white/5 hover:text-white'
                                                 }`}
                                             onClick={() => setFormDiff(diff.key)}
                                         >
